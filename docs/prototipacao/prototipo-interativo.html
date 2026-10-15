@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casa Certa — Protótipo interativo</title>
+<!--
+  Protótipo de alta fidelidade (Fase 3). Arquivo único, abre direto no navegador.
+  Os cálculos abaixo são uma PORTA EM JAVASCRIPT dos motores de src/calculo/ (financiamento, consórcio, margem)
+  e das taxas de src/config/taxasMercado.ts, apenas para o protótipo ser realista.
+  A fonte da verdade continua sendo o código TypeScript testado; na Fase 4 a interface deve chamar esses módulos.
+-->
+<style>
+  :root{
+    --brand:#0f5c63; --brand-d:#0a4248; --brand-l:#e3f1f2;
+    --accent:#e07a1f; --accent-l:#fdeedd;
+    --ok:#2e7d4f; --ok-l:#e2f3e8;
+    --ink:#1b2a2c; --mute:#5d6f72; --line:#d6e0e1; --bg:#f6f9f9; --paper:#fff;
+    --err:#b3261e;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font:16px/1.5 system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+  .skip{position:absolute;left:-999px}
+  .skip:focus{left:8px;top:8px;background:#fff;padding:8px;z-index:20}
+  header.site{background:var(--paper);border-bottom:1px solid var(--line)}
+  .container{max-width:1040px;margin:0 auto;padding:0 20px}
+  .site .container{display:flex;justify-content:space-between;align-items:center;height:60px}
+  .brand{display:flex;gap:10px;align-items:center;font-weight:800;font-size:20px;color:var(--brand);text-decoration:none}
+  .brand svg{width:28px;height:28px}
+  .site nav a{margin-left:18px;color:var(--mute);text-decoration:none;font-size:14px;cursor:pointer;background:none;border:0;font:inherit;font-size:14px}
+  .site nav a:hover{color:var(--brand)}
+  main{padding:28px 0 56px}
+  .steps{display:flex;gap:8px;margin:0 0 24px;padding:0;list-style:none}
+  .steps li{flex:1;padding:10px 12px;border-radius:10px;background:#e8eff0;color:var(--mute);font-size:14px;text-align:center;font-weight:600}
+  .steps li.on{background:var(--brand);color:#fff}
+  .steps li.done{background:var(--brand-l);color:var(--brand)}
+  h1{font-size:28px;line-height:1.2;margin:0 0 6px}
+  h2{font-size:20px;margin:0 0 12px}
+  h3{font-size:16px;margin:0}
+  .lead{color:var(--mute);margin:0 0 20px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:820px){.g2,.g3{grid-template-columns:1fr}.steps li{font-size:12px;padding:8px 4px}h1{font-size:23px}}
+  .field label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+  .field .hint{font-size:12.5px;color:var(--mute);margin-top:5px}
+  .field .err{font-size:12.5px;color:var(--err);margin-top:5px;min-height:1px}
+  input,select{width:100%;height:44px;padding:0 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:var(--ink)}
+  input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:3px solid #7cc4c9;outline-offset:1px}
+  input.bad{border-color:var(--err)}
+  .pct{display:inline-block;margin-left:8px;font-size:12px;background:var(--brand-l);color:var(--brand);border-radius:99px;padding:1px 9px;font-weight:700}
+  .seg{display:flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{flex:1;height:44px;border:0;border-right:1.5px solid var(--line);background:#fff;font:inherit;font-weight:600;cursor:pointer;color:var(--mute)}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed="true"]{background:var(--brand);color:#fff}
+  details.acc{margin-top:16px;border:1.5px dashed var(--line);border-radius:10px;padding:12px 16px;background:#fbfdfd}
+  details.acc summary{cursor:pointer;font-weight:700;color:var(--brand)}
+  details.acc .body{margin-top:14px}
+  .actions{display:flex;justify-content:space-between;gap:12px;margin-top:24px;flex-wrap:wrap}
+  .btn{height:46px;padding:0 22px;border-radius:10px;border:2px solid var(--brand);background:var(--brand);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+  .btn:hover{background:var(--brand-d)}
+  .btn.sec{background:#fff;color:var(--brand)}
+  .btn.sec:hover{background:var(--brand-l)}
+  .banner{border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;border:1px solid;display:flex;gap:12px;align-items:flex-start}
+  .banner.ok{background:var(--ok-l);border-color:#a9d7b9;color:#17492c}
+  .banner.warn{background:var(--accent-l);border-color:#f0c391;color:#6b3a07}
+  .banner .ic{font-size:20px;line-height:1.2}
+  .banner ul{margin:6px 0 0;padding-left:18px}
+  .tag{display:inline-block;font-size:12px;font-weight:700;background:var(--brand-l);color:var(--brand);border-radius:99px;padding:2px 10px;margin-left:6px;vertical-align:middle}
+  .big{font-size:34px;font-weight:800;color:var(--brand);line-height:1.1;margin:10px 0 2px}
+  .sub{font-size:13px;color:var(--mute)}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #edf2f2;font-size:15px}
+  .kv:last-child{border:0}
+  .kv span:first-child{color:var(--mute)}
+  .kv b{text-align:right}
+  .chartbox{position:relative}
+  svg.chart{width:100%;height:auto;display:block}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin-top:8px}
+  .legend i{display:inline-block;width:18px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .readout{font-size:13px;color:var(--ink);min-height:20px;margin-top:6px}
+  .tablewrap{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid #edf2f2;white-space:nowrap}
+  th{position:sticky;top:0;background:#eef5f5;z-index:1}
+  th:first-child,td:first-child{text-align:center}
+  tr.inccrow td{background:var(--accent-l)}
+  .cards-m{display:none}
+  @media(max-width:700px){.tablewrap{display:none}.cards-m{display:block}}
+  .mcard{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:10px;background:#fff}
+  .mcard.inccrow{background:var(--accent-l)}
+  footer.site{text-align:center;color:var(--mute);font-size:13px;padding:20px;border-top:1px solid var(--line);background:var(--paper)}
+  .demo{margin-top:22px;padding:12px 16px;border:1.5px dashed #b7c7c9;border-radius:10px;font-size:13px;color:var(--mute);background:#fff}
+  .demo b{color:var(--ink)}
+  .acc2 details{border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:10px;background:#fff}
+  .acc2 summary{font-weight:700;cursor:pointer}
+  .acc2 p{margin:10px 0 0;color:var(--mute)}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Pular para o conteúdo</a>
+
+<header class="site">
+  <div class="container">
+    <a class="brand" href="#" data-go="form" aria-label="Casa Certa, início">
+      <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M4 15 16 4l12 11v13H4z" fill="#0f5c63"/><path d="M13 28V19h6v9" fill="#fff"/></svg>
+      Casa Certa
+    </a>
+    <nav><button class="link" data-go="premissas" style="all:unset;cursor:pointer;color:#5d6f72;font-size:14px">Premissas</button></nav>
+  </div>
+</header>
+
+<main id="main" class="container" tabindex="-1">
+
+<!-- ================= ETAPAS ================= -->
+<ol class="steps" id="steps" aria-label="Etapas">
+  <li data-s="1">1 · Dados</li><li data-s="2">2 · Resultado</li><li data-s="3">3 · Detalhamento</li>
+</ol>
+
+<!-- ============ TELA 1 ============ -->
+<section id="v-form">
+  <h1>Quanto custa o seu imóvel e como você pretende pagar?</h1>
+  <p class="lead">Preencha os dados e compare, lado a lado, financiar ou entrar em um consórcio.</p>
+  <form class="card" id="form" novalidate>
+    <div class="grid g2">
+      <div class="field"><label for="valor">Valor do imóvel</label><input id="valor" inputmode="decimal" data-money value="400000"><div class="err" data-err="valor"></div></div>
+      <div class="field"><label for="entrada">Entrada <span class="pct" id="entPct">20%</span></label><input id="entrada" inputmode="decimal" data-money value="80000"><div class="hint">Usada no financiamento. No consórcio vale a carta de crédito.</div><div class="err" data-err="entrada"></div></div>
+      <div class="field"><label for="renda">Renda mensal bruta familiar</label><input id="renda" inputmode="decimal" data-money value="14000"><div class="err" data-err="renda"></div></div>
+      <div class="field"><label for="idade">Idade do comprador</label><input id="idade" type="number" min="18" max="80" value="30"><div class="hint">Define a faixa do seguro MIP.</div><div class="err" data-err="idade"></div></div>
+      <div class="field"><label for="prazoF">Prazo do financiamento</label>
+        <select id="prazoF"><option value="120">120 meses (10 anos)</option><option value="240">240 meses (20 anos)</option><option value="300">300 meses (25 anos)</option><option value="360" selected>360 meses (30 anos)</option><option value="420">420 meses (35 anos)</option></select></div>
+      <div class="field"><label for="prazoC">Prazo do consórcio</label>
+        <select id="prazoC"><option value="100">100 meses</option><option value="150">150 meses</option><option value="200" selected>200 meses</option><option value="240">240 meses</option></select></div>
+    </div>
+
+    <div class="field" style="margin-top:18px"><label id="lblSis">Sistema de amortização do financiamento</label>
+      <div class="seg" role="group" aria-labelledby="lblSis" id="segSis">
+        <button type="button" data-v="SAC" aria-pressed="true">SAC</button>
+        <button type="button" data-v="PRICE" aria-pressed="false">Price</button>
+        <button type="button" data-v="AMBOS" aria-pressed="false">Comparar os dois</button>
+      </div>
+      <div class="hint">SAC: parcelas decrescentes. Price: parcelas fixas.</div>
+    </div>
+
+    <details class="acc"><summary>Ajustar premissas (opcional)</summary>
+      <div class="body">
+        <div class="grid g3">
+          <div class="field"><label for="jur">Juros anual (financiamento)</label><input id="jur" inputmode="decimal" value="10,99"><div class="hint">% ao ano</div></div>
+          <div class="field"><label for="tr">TR mensal</label><input id="tr" inputmode="decimal" value="0,00"><div class="hint">% ao mês (0 = ignorar)</div></div>
+          <div class="field"><label for="tar">Tarifa mensal</label><input id="tar" inputmode="decimal" data-money value="25"></div>
+          <div class="field"><label for="tadm">Taxa de adm. do consórcio</label><input id="tadm" inputmode="decimal" value="16"><div class="hint">% sobre a carta</div></div>
+          <div class="field"><label for="fr">Fundo de reserva</label><input id="fr" inputmode="decimal" value="2"><div class="hint">% sobre a carta</div></div>
+          <div class="field"><label for="incc">INCC anual</label><input id="incc" inputmode="decimal" value="6"><div class="hint">% ao ano</div></div>
+        </div>
+        <div class="hint" style="margin-top:10px">Valores iniciais = taxas médias de mercado (src/config/taxasMercado.ts).</div>
+      </div>
+    </details>
+
+    <details class="acc"><summary>Simular lance no consórcio (opcional)</summary>
+      <div class="body">
+        <div class="grid g3">
+          <div class="field"><label for="lmes">Mês do lance</label><input id="lmes" type="number" min="1" placeholder="ex.: 24"><div class="err" data-err="lmes"></div></div>
+          <div class="field"><label for="lval">Valor do lance</label><input id="lval" inputmode="decimal" data-money placeholder="R$ 0,00"><div class="err" data-err="lval"></div></div>
+          <div class="field"><label id="lblModo">Efeito do lance</label>
+            <div class="seg" role="group" aria-labelledby="lblModo" id="segLance"><button type="button" data-v="reduzirPrazo" aria-pressed="true">Reduz prazo</button><button type="button" data-v="reduzirParcela" aria-pressed="false">Reduz parcela</button></div></div>
+        </div>
+      </div>
+    </details>
+
+    <div class="actions">
+      <button type="button" class="btn sec" id="limpar">Limpar</button>
+      <button type="submit" class="btn">Simular →</button>
+    </div>
+  </form>
+</section>
+
+<!-- ============ TELA 2 ============ -->
+<section id="v-result" hidden>
+  <h1>Resultado da simulação</h1>
+  <p class="lead" id="resLead"></p>
+  <div id="banner"></div>
+  <div class="grid" id="cards"></div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Custo total ao longo do tempo</h2>
+    <div class="chartbox"><svg class="chart" id="chartCost" viewBox="0 0 720 300" role="img" aria-label="Gráfico de linhas do custo acumulado por mês"></svg></div>
+    <div class="legend" id="legCost"></div>
+    <div class="readout" id="roCost" aria-live="polite">Passe o mouse (ou toque) no gráfico para ver os valores de cada mês.</div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Resumo</h2>
+    <p id="resumo" style="margin:0"></p>
+  </div>
+
+  <div class="actions">
+    <button class="btn sec" data-go="form">← Editar dados</button>
+    <button class="btn" data-go="detail">Ver detalhamento →</button>
+  </div>
+
+  <div class="demo"><b>Só no protótipo:</b> forçar o estado do banner de margem.
+    <span class="seg" id="demoBanner" style="display:inline-flex;margin-left:8px;height:34px;vertical-align:middle">
+      <button type="button" data-v="auto" aria-pressed="true" style="height:34px">Automático</button>
+      <button type="button" data-v="ok" aria-pressed="false" style="height:34px">Dentro</button>
+      <button type="button" data-v="warn" aria-pressed="false" style="height:34px">Acima</button></span></div>
+</section>
+
+<!-- ============ TELA 3 ============ -->
+<section id="v-detail" hidden>
+  <h1>Detalhamento mês a mês</h1>
+  <p class="lead">Veja de onde vem cada parte da parcela e como o saldo devedor evolui.</p>
+  <div class="seg" id="tabsDet" style="max-width:460px;margin-bottom:16px"></div>
+  <div class="card"><h2>Evolução do saldo devedor</h2>
+    <svg class="chart" id="chartSaldo" viewBox="0 0 720 240" role="img" aria-label="Gráfico da evolução do saldo devedor"></svg>
+    <div class="readout" id="roSaldo" aria-live="polite"></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h2 id="tblTitle">Composição da parcela</h2>
+    <div class="tablewrap"><table id="tbl"></table></div>
+    <div class="cards-m" id="tblM"></div>
+    <div style="text-align:center;margin-top:12px"><button class="btn sec" id="more">Carregar mais</button></div>
+  </div>
+  <div class="actions">
+    <button class="btn sec" id="csv">Exportar CSV</button>
+    <button class="btn" data-go="form" id="nova">Nova simulação</button>
+  </div>
+</section>
+
+<!-- ============ PREMISSAS ============ -->
+<section id="v-prem" hidden>
+  <h1>Premissas e glossário</h1>
+  <p class="lead">Explicações curtas, sem juridiquês.</p>
+  <div class="acc2">
+    <details open><summary>SAC e Price: qual a diferença?</summary><p>No SAC você amortiza o mesmo valor todo mês; os juros caem junto com o saldo, então a parcela começa maior e diminui. Na Price a parcela é fixa: no começo paga-se mais juros e menos amortização.</p></details>
+    <details><summary>O que são MIP, DFI e tarifa?</summary><p>MIP é o seguro de morte e invalidez do comprador e varia com a idade. DFI é o seguro contra danos ao imóvel. A tarifa é um valor fixo mensal de administração do contrato.</p></details>
+    <details><summary>O que é CET?</summary><p>Custo Efetivo Total: a taxa anual que reúne juros, seguros e tarifas. É a melhor forma de comparar ofertas de financiamento.</p></details>
+    <details><summary>Taxa de administração, fundo de reserva e INCC no consórcio</summary><p>A taxa de administração remunera a administradora; o fundo de reserva cobre inadimplência do grupo. O INCC é o índice da construção civil e reajusta o saldo e as parcelas a cada 12 meses.</p></details>
+    <details><summary>Por que o limite de 30% da renda?</summary><p>É a regra usada pelo mercado: a parcela não deve passar de 30% da renda mensal bruta familiar.</p></details>
+    <details><summary>De onde vêm as taxas?</summary><p>São médias de mercado em config/taxasMercado.ts (consulta em 13/10/2026). Você pode alterá-las em "Ajustar premissas".</p></details>
+  </div>
+  <div class="actions"><button class="btn" data-go="form">Voltar à simulação</button></div>
+</section>
+
+</main>
+<footer class="site">Simulação educativa. Não constitui oferta de crédito.</footer>
+
+<script>
+/* ======================= MOTORES (porta de src/calculo) ======================= */
+const TAXAS = {
+  fin:{jurosAnual:0.1099,correcaoMensal:0,dfiMensal:0.0001337,tarifa:25,
+    mip:[[25,0.00022866],[30,0.00029256],[35,0.00028933],[40,0.00030896],[45,0.00032617],[50,0.00034423],[55,0.00037127],[60,0.00039172],[65,0.00040322],[80,0.00043928]]},
+  con:{taxaAdm:0.16,fundoReserva:0.02,incc:0.06}
+};
+const EPS = 1e-6;
+const jurosMensal = a => Math.pow(1+a,1/12)-1;
+const mipTaxa = idade => (TAXAS.fin.mip.find(f=>idade<=f[0])||TAXAS.fin.mip[TAXAS.fin.mip.length-1])[1];
+const pmtPrice = (v,i,n) => i===0 ? v/n : v*i/(1-Math.pow(1+i,-n));
+function tirMensal(recebido,pgs){
+  const vpl=r=>recebido-pgs.reduce((a,p,k)=>a+p/Math.pow(1+r,k+1),0);
+  if(vpl(0)>=0) return 0;
+  let lo=0,hi=1; while(vpl(hi)<0) hi*=2;
+  for(let k=0;k<200;k++){const m=(lo+hi)/2; if(vpl(m)<0) lo=m; else hi=m; if(hi-lo<1e-12) break;}
+  return (lo+hi)/2;
+}
+function simularFinanciamento(p){
+  const fin=p.valorImovel-p.entrada, i=jurosMensal(p.jurosAnual), n=p.prazoMeses;
+  let saldo=fin, amSac=fin/n, pmt=pmtPrice(fin,i,n); const ps=[];
+  for(let mes=1;mes<=n;mes++){
+    const rest=n-mes+1;
+    if(p.correcaoMensal!==0){saldo*=1+p.correcaoMensal; amSac=saldo/rest; pmt=pmtPrice(saldo,i,rest);}
+    const idade=p.idade+Math.floor((mes-1)/12);
+    const juros=saldo*i;
+    const amort=p.sistema==='SAC'?Math.min(amSac,saldo):Math.min(pmt-juros,saldo);
+    const mip=saldo*mipTaxa(idade), dfi=p.valorImovel*p.dfiMensal, tar=p.tarifa;
+    saldo-=amort; if(saldo<EPS) saldo=0;
+    ps.push({mes,amortizacao:amort,juros,mip,dfi,tarifa:tar,parcela:amort+juros+mip+dfi+tar,saldo});
+  }
+  const soma=f=>ps.reduce((a,x)=>a+f(x),0), totalParcelas=soma(x=>x.parcela);
+  const cet=Math.pow(1+tirMensal(fin,ps.map(x=>x.parcela)),12)-1;
+  return {sistema:p.sistema,parcelas:ps,valorFinanciado:fin,primeira:ps[0].parcela,ultima:ps[ps.length-1].parcela,
+    maior:Math.max(...ps.map(x=>x.parcela)),totalJuros:soma(x=>x.juros),totalSeguros:soma(x=>x.mip+x.dfi),totalTarifa:soma(x=>x.tarifa),
+    totalParcelas,custoTotal:p.entrada+totalParcelas,cet,entrada:p.entrada};
+}
+const isMesReajuste = m => m>1 && (m-1)%12===0;
+function simularConsorcio(p){
+  let sFC=p.valorCarta, sTA=p.valorCarta*p.taxaAdm, sFR=p.valorCarta*p.fundoReserva, carta=p.valorCarta, prazo=p.prazoMeses;
+  const lm=new Map(); (p.lances||[]).forEach(l=>lm.set(l.mes,[...(lm.get(l.mes)||[]),l]));
+  const ps=[];
+  for(let mes=1;mes<=prazo;mes++){
+    const reaj=isMesReajuste(mes)&&p.incc!==0;
+    if(reaj){const f=1+p.incc; sFC*=f; sTA*=f; sFR*=f; carta*=f;}
+    const rest=prazo-mes+1, fc=sFC/rest, ta=sTA/rest, fr=sFR/rest;
+    sFC-=fc; sTA-=ta; sFR-=fr;
+    let lanceMes=0;
+    for(const l of (lm.get(mes)||[])){
+      const sr=sFC+sTA+sFR; if(sr<=EPS) break;
+      const v=Math.min(l.valor,sr), fator=1-v/sr; sFC*=fator; sTA*=fator; sFR*=fator; lanceMes+=v;
+      if(l.modo==='reduzirPrazo'){
+        const pr=fc+ta+fr, nr=Math.ceil((sFC+sTA+sFR)>EPS?(sFC+sTA+sFR)/pr-EPS:0);
+        prazo=Math.max(mes+nr,Math.min(prazo,0));
+      }
+    }
+    const saldo=sFC+sTA+sFR;
+    ps.push({mes,fundoComum:fc,taxaAdm:ta,fundoReserva:fr,parcela:fc+ta+fr,lance:lanceMes,saldo:saldo<EPS?0:saldo,reaj});
+    if(saldo<EPS) break;
+  }
+  const soma=f=>ps.reduce((a,x)=>a+f(x),0);
+  const ult=[...ps].reverse().find(x=>x.parcela>EPS);
+  return {parcelas:ps,prazoEfetivo:ps.length,primeira:ps[0].parcela,ultima:ult?ult.parcela:0,totalParcelas:soma(x=>x.parcela),
+    totalLances:soma(x=>x.lance),custoTotal:soma(x=>x.parcela)+soma(x=>x.lance),totalTaxaAdm:soma(x=>x.taxaAdm),totalFR:soma(x=>x.fundoReserva),carta:p.valorCarta};
+}
+const LIMITE=0.3;
+function avaliarMargem(renda,parcela){
+  const max=renda*LIMITE; return {comprometimento:parcela/renda,max,excedente:Math.max(0,parcela-max),ok:parcela<=max};
+}
+
+/* ======================= UTILIDADES ======================= */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const BRL=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
+const BRL0=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const PCT=v=>(v*100).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+const num=s=>{const t=String(s).replace(/[^\d,.-]/g,'');if(!t)return NaN;
+  // "400.000,50" -> 400000.50 ; "10,99" -> 10.99 ; "400000" -> 400000
+  if(t.includes(',')) return parseFloat(t.replace(/\./g,'').replace(',','.'));
+  return parseFloat(t.replace(/\./g,''));};
+const fmtMoneyInput=v=>isNaN(v)?'':v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+let ST={sistema:'SAC',modo:'reduzirPrazo',demo:'auto',res:null,det:'fin0',shown:60};
+
+/* ======================= NAVEGAÇÃO ======================= */
+function go(v){
+  ['form','result','detail','prem'].forEach(k=>$('#v-'+k).hidden=(k!==v));
+  const n={form:1,result:2,detail:3}[v];
+  $('#steps').hidden=!n;
+  $$('#steps li').forEach(li=>{const s=+li.dataset.s; li.className=s===n?'on':(s<n?'done':'');});
+  window.scrollTo({top:0});
+  if(v==='result') renderResult();
+  if(v==='detail') renderDetail();
+}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-go]'); if(t){e.preventDefault(); go(t.dataset.go);}});
+
+/* ======================= FORMULÁRIO ======================= */
+$$('input[data-money]').forEach(el=>{
+  el.addEventListener('blur',()=>{const v=num(el.value); if(!isNaN(v)) el.value=fmtMoneyInput(v);});
+  el.addEventListener('focus',()=>{const v=num(el.value); if(!isNaN(v)) el.value=String(v).replace('.',',');});
+});
+['valor','entrada'].forEach(id=>$('#'+id).addEventListener('input',()=>{
+  const v=num($('#valor').value), e=num($('#entrada').value);
+  $('#entPct').textContent=(v>0&&e>=0)?Math.round(e/v*100)+'%':'—';
+}));
+function seg(id,key){
+  $('#'+id).addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return;
+    $$('#'+id+' button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); ST[key]=b.dataset.v;});
+}
+seg('segSis','sistema'); seg('segLance','modo');
+$('#limpar').addEventListener('click',()=>{ $('#form').reset(); $$('input[data-money]').forEach(el=>{const v=num(el.value); if(!isNaN(v)) el.value=fmtMoneyInput(v);}); $$('.err').forEach(e=>e.textContent=''); $$('input').forEach(i=>i.classList.remove('bad')); $('#entPct').textContent='20%'; });
+$$('input[data-money]').forEach(el=>{const v=num(el.value); if(!isNaN(v)) el.value=fmtMoneyInput(v);});
+
+function setErr(k,msg){const el=document.querySelector(`[data-err="${k}"]`); if(el) el.textContent=msg||''; const inp=$('#'+k); if(inp) inp.classList.toggle('bad',!!msg);}
+function ler(){
+  const d={valor:num($('#valor').value),entrada:num($('#entrada').value),renda:num($('#renda').value),idade:parseInt($('#idade').value,10),
+    prazoF:+$('#prazoF').value,prazoC:+$('#prazoC').value,
+    jur:num($('#jur').value)/100,tr:num($('#tr').value)/100,tar:num($('#tar').value),tadm:num($('#tadm').value)/100,fr:num($('#fr').value)/100,incc:num($('#incc').value)/100,
+    lmes:parseInt($('#lmes').value,10),lval:num($('#lval').value)};
+  return d;
+}
+function validar(d){
+  let ok=true; ['valor','entrada','renda','idade','lmes','lval'].forEach(k=>setErr(k,''));
+  if(!(d.valor>0)){setErr('valor','Informe um valor maior que zero.');ok=false;}
+  if(!(d.entrada>=0)){setErr('entrada','A entrada não pode ser negativa.');ok=false;}
+  else if(d.valor>0&&d.entrada>=d.valor){setErr('entrada','A entrada deve ser menor que o valor do imóvel.');ok=false;}
+  if(!(d.renda>0)){setErr('renda','Informe uma renda maior que zero.');ok=false;}
+  if(!Number.isInteger(d.idade)||d.idade<18){setErr('idade','A idade mínima é 18 anos.');ok=false;}
+  const temL=!isNaN(d.lmes)||(!isNaN(d.lval)&&d.lval!==0);
+  if(temL){
+    if(isNaN(d.lmes)||d.lmes<1||d.lmes>d.prazoC){setErr('lmes','Informe um mês entre 1 e '+d.prazoC+'.');ok=false;}
+    if(!(d.lval>0)){setErr('lval','Informe o valor do lance.');ok=false;}
+  }
+  [d.jur,d.tr,d.tar,d.tadm,d.fr,d.incc].forEach(v=>{ if(isNaN(v)||v<0&&v!==d.tr) ok=false; });
+  return ok;
+}
+$('#form').addEventListener('submit',e=>{
+  e.preventDefault(); const d=ler(); if(!validar(d)){const f=document.querySelector('.bad'); if(f) f.focus(); return;}
+  const base={valorImovel:d.valor,entrada:d.entrada,idade:d.idade,jurosAnual:d.jur,correcaoMensal:d.tr,dfiMensal:TAXAS.fin.dfiMensal,tarifa:d.tar};
+  const cons=simularConsorcio({valorCarta:d.valor,prazoMeses:d.prazoC,taxaAdm:d.tadm,fundoReserva:d.fr,incc:d.incc,
+    lances:(d.lmes>0&&d.lval>0)?[{mes:d.lmes,valor:d.lval,modo:ST.modo}]:[]});
+  const fins=[];
+  if(ST.sistema!=='PRICE') fins.push(simularFinanciamento({...base,prazoMeses:d.prazoF,sistema:'SAC'}));
+  if(ST.sistema!=='SAC') fins.push(simularFinanciamento({...base,prazoMeses:d.prazoF,sistema:'PRICE'}));
+  ST.res={d,fins,cons,lance:(d.lmes>0&&d.lval>0)?{mes:d.lmes,valor:d.lval,modo:ST.modo}:null}; ST.det='fin0'; ST.shown=60;
+  go('result');
+});
+
+/* ======================= GRÁFICOS ======================= */
+const W=720;
+function lineChart(svg,series,H,opts={}){
+  const padL=64,padR=16,padT=12,padB=30, iw=W-padL-padR, ih=H-padT-padB;
+  const maxX=Math.max(...series.map(s=>s.pts.length)), maxY=Math.max(...series.flatMap(s=>s.pts))*1.05||1;
+  const X=i=>padL+iw*(i/Math.max(1,maxX-1)), Y=v=>padT+ih*(1-v/maxY);
+  let g='';
+  for(let k=0;k<=4;k++){const v=maxY*k/4,y=Y(v); g+=`<line x1="${padL}" x2="${W-padR}" y1="${y}" y2="${y}" stroke="#e4ecec"/><text x="${padL-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#5d6f72">${v>=1e6?(v/1e6).toFixed(1).replace('.',',')+' mi':Math.round(v/1000)+' mil'}</text>`;}
+  for(let k=0;k<=4;k++){const m=Math.round((maxX-1)*k/4)+1; g+=`<text x="${X(m-1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#5d6f72">${m}</text>`;}
+  g+=`<text x="${W-padR}" y="${H-8}" text-anchor="end" font-size="10" fill="#5d6f72"></text>`;
+  series.forEach(s=>{
+    const d=s.pts.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
+    g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="3" ${s.dash?'stroke-dasharray="7 5"':''} stroke-linejoin="round"/>`;
+  });
+  g+=`<line id="${svg.id}-x" x1="0" x2="0" y1="${padT}" y2="${padT+ih}" stroke="#0f5c63" stroke-opacity=".5" visibility="hidden"/>`;
+  g+=`<rect id="${svg.id}-hit" x="${padL}" y="${padT}" width="${iw}" height="${ih}" fill="transparent"/>`;
+  svg.innerHTML=g;
+  const hit=svg.querySelector('#'+svg.id+'-hit'), vl=svg.querySelector('#'+svg.id+'-x');
+  const move=ev=>{
+    const r=svg.getBoundingClientRect(), cx=(ev.touches?ev.touches[0].clientX:ev.clientX), x=(cx-r.left)/r.width*W;
+    const i=Math.max(0,Math.min(maxX-1,Math.round((x-padL)/iw*(maxX-1))));
+    vl.setAttribute('x1',X(i)); vl.setAttribute('x2',X(i)); vl.setAttribute('visibility','visible');
+    opts.onHover&&opts.onHover(i,series);
+  };
+  hit.addEventListener('mousemove',move); hit.addEventListener('touchmove',move,{passive:true}); hit.addEventListener('touchstart',move,{passive:true});
+}
+
+/* ======================= TELA 2 ======================= */
+const COR={SAC:'#0f5c63',PRICE:'#e07a1f',CON:'#6a4c93'};
+function renderResult(){
+  const {d,fins,cons,lance}=ST.res;
+  $('#resLead').textContent=`Imóvel de ${BRL0.format(d.valor)} · entrada de ${BRL0.format(d.entrada)} · renda de ${BRL0.format(d.renda)}.`;
+
+  // Banner de margem (RN01 / RF02): financiamento usa a MAIOR parcela, consórcio usa a parcela INICIAL
+  const itens=[...fins.map(f=>({nome:'Financiamento '+(f.sistema==='SAC'?'SAC':'Price'),parcela:f.maior,rot:'maior parcela'})),{nome:'Consórcio',parcela:cons.primeira,rot:'parcela inicial'}]
+    .map(x=>({...x,m:avaliarMargem(d.renda,x.parcela)}));
+  const algumAcima=itens.some(x=>!x.m.ok);
+  const estado=ST.demo==='auto'?(algumAcima?'warn':'ok'):ST.demo;
+  if(estado==='ok'){
+    $('#banner').innerHTML=`<div class="banner ok"><span class="ic">✔</span><div><b>Cabe na sua renda.</b> ${itens.map(x=>`${x.nome}: ${PCT(x.m.comprometimento)} (${x.rot})`).join(' · ')}. O limite é de 30% de ${BRL0.format(d.renda)}, ou seja, ${BRL0.format(d.renda*LIMITE)} por mês.</div></div>`;
+  }else{
+    const ruins=itens.filter(x=>!x.m.ok), lista=(ruins.length?ruins:itens);
+    $('#banner').innerHTML=`<div class="banner warn"><span class="ic">⚠</span><div><b>Parcela acima do limite de 30% da renda.</b>
+      <ul>${lista.map(x=>`<li>${x.nome}: ${PCT(x.m.comprometimento)} da renda, excede em ${BRL0.format(x.m.excedente||0)}.</li>`).join('')}</ul>
+      <div style="margin-top:6px">Para reduzir: aumente a entrada, alongue o prazo ou escolha um imóvel de menor valor.</div></div></div>`;
+  }
+
+  // Cartões
+  const nCols=fins.length+1; $('#cards').className='grid '+(nCols===3?'g3':'g2');
+  const cardFin=f=>`<div class="card"><h3>Financiamento<span class="tag">${f.sistema==='SAC'?'SAC':'Price'} · ${f.parcelas.length} meses</span></h3>
+    <div class="big">${BRL0.format(f.primeira)}</div><div class="sub">1ª parcela · maior ${BRL0.format(f.maior)} · última ${BRL0.format(f.ultima)}</div>
+    <div style="margin-top:12px">
+      <div class="kv"><span>Valor financiado</span><b>${BRL0.format(f.valorFinanciado)}</b></div>
+      <div class="kv"><span>Total de juros</span><b>${BRL0.format(f.totalJuros)}</b></div>
+      <div class="kv"><span>Seguros e tarifa</span><b>${BRL0.format(f.totalSeguros+f.totalTarifa)}</b></div>
+      <div class="kv"><span>CET (ao ano)</span><b>${PCT(f.cet)}</b></div>
+      <div class="kv"><span>Custo total (entrada + parcelas)</span><b>${BRL0.format(f.custoTotal)}</b></div></div></div>`;
+  const cardCon=`<div class="card"><h3>Consórcio<span class="tag">${cons.prazoEfetivo} meses${cons.prazoEfetivo<d.prazoC?' (reduzido pelo lance)':''}</span></h3>
+    <div class="big">${BRL0.format(cons.primeira)}</div><div class="sub">1ª parcela · reajuste do INCC a cada 12 meses${lance?` · lance de ${BRL0.format(lance.valor)} no mês ${lance.mes}`:''}</div>
+    <div style="margin-top:12px">
+      <div class="kv"><span>Carta de crédito</span><b>${BRL0.format(cons.carta)}</b></div>
+      <div class="kv"><span>Taxa de administração</span><b>${BRL0.format(cons.totalTaxaAdm)}</b></div>
+      <div class="kv"><span>Fundo de reserva</span><b>${BRL0.format(cons.totalFR)}</b></div>
+      <div class="kv"><span>Última parcela</span><b>${BRL0.format(cons.ultima)}</b></div>
+      <div class="kv"><span>Custo total (parcelas + lance)</span><b>${BRL0.format(cons.custoTotal)}</b></div></div></div>`;
+  $('#cards').innerHTML=fins.map(cardFin).join('')+cardCon;
+
+  // Gráfico de custo acumulado
+  const series=[];
+  fins.forEach(f=>{let a=f.entrada; series.push({nome:'Financiamento '+(f.sistema==='SAC'?'SAC':'Price'),color:f.sistema==='SAC'?COR.SAC:COR.PRICE,pts:f.parcelas.map(p=>a+=p.parcela)});});
+  {let a=0; series.push({nome:'Consórcio',color:COR.CON,dash:true,pts:cons.parcelas.map(p=>a+=p.parcela+p.lance)});}
+  lineChart($('#chartCost'),series,300,{onHover:(i,ss)=>{
+    $('#roCost').innerHTML=`<b>Mês ${i+1}:</b> `+ss.map(s=>`${s.nome} ${i<s.pts.length?BRL0.format(s.pts[i]):'—'}`).join(' · ');}});
+  $('#legCost').innerHTML=series.map(s=>`<span><i style="background:${s.color}"></i>${s.nome}</span>`).join('');
+  $('#roCost').textContent='Passe o mouse (ou toque) no gráfico para ver os valores de cada mês.';
+
+  // Resumo neutro (sem recomendar)
+  const f0=fins[0], dif=f0.custoTotal-cons.custoTotal, ab=Math.abs(dif), pc=ab/Math.max(f0.custoTotal,cons.custoTotal);
+  const menor=dif>0?'o consórcio':'o financiamento';
+  $('#resumo').textContent=`No cenário simulado, ${menor} tem custo total ${BRL0.format(ab)} menor (${PCT(pc)}), comparando ${f0.sistema==='SAC'?'o SAC':'a Price'} com o consórcio. `+
+    `Lembre-se: o financiamento libera o imóvel agora, enquanto o consórcio só entrega a carta de crédito após a contemplação (sorteio ou lance). Este resumo não é uma recomendação.`;
+}
+$('#demoBanner').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return;
+  $$('#demoBanner button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); ST.demo=b.dataset.v; renderResult();});
+
+/* ======================= TELA 3 ======================= */
+function renderDetail(){
+  const {fins,cons}=ST.res;
+  const tabs=[...fins.map((f,i)=>({id:'fin'+i,nome:'Financ. '+(f.sistema==='SAC'?'SAC':'Price')})),{id:'con',nome:'Consórcio'}];
+  if(!tabs.find(t=>t.id===ST.det)) ST.det=tabs[0].id;
+  $('#tabsDet').innerHTML=tabs.map(t=>`<button type="button" data-v="${t.id}" aria-pressed="${t.id===ST.det}">${t.nome}</button>`).join('');
+  const isCon=ST.det==='con', obj=isCon?cons:fins[+ST.det.slice(3)], ps=obj.parcelas;
+  $('#tblTitle').textContent=isCon?'Composição da parcela (consórcio)':'Composição da parcela (financiamento)';
+  lineChart($('#chartSaldo'),[{nome:'Saldo devedor',color:isCon?COR.CON:(obj.sistema==='SAC'?COR.SAC:COR.PRICE),pts:ps.map(p=>p.saldo)}],240,
+    {onHover:i=>{$('#roSaldo').innerHTML=`<b>Mês ${i+1}:</b> saldo devedor ${BRL0.format(ps[i].saldo)}`;}});
+  $('#roSaldo').textContent='Passe o mouse (ou toque) no gráfico para ver o saldo de cada mês.';
+  const R=v=>v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const rows=ps.slice(0,ST.shown);
+  const head=isCon?['Mês','Fundo comum','Taxa adm.','Fundo reserva','Parcela','Lance','Saldo devedor']:['Mês','Amortização','Juros','MIP','DFI','Tarifa','Parcela','Saldo devedor'];
+  const cells=p=>isCon?[p.mes,R(p.fundoComum),R(p.taxaAdm),R(p.fundoReserva),R(p.parcela),p.lance?R(p.lance):'—',R(p.saldo)]
+                      :[p.mes,R(p.amortizacao),R(p.juros),R(p.mip),R(p.dfi),R(p.tarifa),R(p.parcela),R(p.saldo)];
+  $('#tbl').innerHTML='<thead><tr>'+head.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+
+    rows.map(p=>`<tr${p.reaj?' class="inccrow" title="Reajuste INCC neste mês"':''}>${cells(p).map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')+'</tbody>';
+  $('#tblM').innerHTML=rows.map(p=>{const c=cells(p);return `<div class="mcard${p.reaj?' inccrow':''}"><b>Mês ${p.mes}</b>${p.reaj?' · reajuste INCC':''}`+
+    head.slice(1).map((h,i)=>`<div class="kv"><span>${h}</span><b>${c[i+1]}</b></div>`).join('')+'</div>';}).join('');
+  $('#more').hidden=ST.shown>=ps.length; $('#more').textContent=`Carregar mais (${Math.min(ST.shown,ps.length)} de ${ps.length})`;
+}
+$('#tabsDet').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; ST.det=b.dataset.v; ST.shown=60; renderDetail();});
+$('#more').addEventListener('click',()=>{ST.shown+=60; renderDetail();});
+$('#csv').addEventListener('click',()=>{
+  const {fins,cons}=ST.res, isCon=ST.det==='con', obj=isCon?cons:fins[+ST.det.slice(3)];
+  const head=isCon?['mes','fundo_comum','taxa_adm','fundo_reserva','parcela','lance','saldo_devedor']:['mes','amortizacao','juros','mip','dfi','tarifa','parcela','saldo_devedor'];
+  const lin=obj.parcelas.map(p=>(isCon?[p.mes,p.fundoComum,p.taxaAdm,p.fundoReserva,p.parcela,p.lance,p.saldo]:[p.mes,p.amortizacao,p.juros,p.mip,p.dfi,p.tarifa,p.parcela,p.saldo]).map(v=>typeof v==='number'&&!Number.isInteger(v)?v.toFixed(2):v).join(';'));
+  const blob=new Blob(['﻿'+head.join(';')+'\n'+lin.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='casa-certa-'+(isCon?'consorcio':'financiamento')+'.csv'; a.click(); URL.revokeObjectURL(a.href);
+});
+
+go('form');
+</script>
+</body>
+</html>
