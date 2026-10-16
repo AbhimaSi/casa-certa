@@ -1,122 +1,88 @@
 import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { TelaDados } from './telas/TelaDados'
+import { TelaDetalhe } from './telas/TelaDetalhe'
+import { TelaPremissas } from './telas/TelaPremissas'
+import { TelaResultado } from './telas/TelaResultado'
+import { DADOS_INICIAIS, executarSimulacao, type DadosSimulacao, type Simulacao } from './ui/simulacao'
 
-function App() {
-  const [count, setCount] = useState(0)
+type Tela = 'dados' | 'resultado' | 'detalhe' | 'premissas'
+
+const ETAPAS: { tela: Tela; rotulo: string }[] = [
+  { tela: 'dados', rotulo: '1 · Dados' },
+  { tela: 'resultado', rotulo: '2 · Resultado' },
+  { tela: 'detalhe', rotulo: '3 · Detalhamento' },
+]
+
+export default function App() {
+  const [tela, setTela] = useState<Tela>('dados')
+  const [dados, setDados] = useState<DadosSimulacao>(DADOS_INICIAIS)
+  const [sim, setSim] = useState<Simulacao | null>(null)
+  const [erro, setErro] = useState('')
+
+  function ir(t: Tela) {
+    setTela(t)
+    window.scrollTo({ top: 0 })
+  }
+
+  function simular(d: DadosSimulacao) {
+    try {
+      setSim(executarSimulacao(d))
+      setErro('')
+      ir('resultado')
+    } catch (e) {
+      setErro((e as Error).message)
+    }
+  }
+
+  const indice = ETAPAS.findIndex((e) => e.tela === tela)
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+      <a className="skip" href="#main">
+        Pular para o conteúdo
+      </a>
+      <header className="site">
+        <div className="container">
+          <button type="button" className="brand" onClick={() => ir('dados')} aria-label="Casa Certa, início">
+            <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <path d="M4 15 16 4l12 11v13H4z" fill="#0f5c63" />
+              <path d="M13 28V19h6v9" fill="#fff" />
+            </svg>
+            Casa Certa
+          </button>
+          <nav>
+            <button type="button" className="link" onClick={() => ir('premissas')}>
+              Premissas
+            </button>
+          </nav>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
+      <main id="main" className="container" tabIndex={-1}>
+        {indice >= 0 && (
+          <ol className="steps" aria-label="Etapas">
+            {ETAPAS.map((e, i) => (
+              <li key={e.tela} className={i === indice ? 'on' : i < indice ? 'done' : ''} aria-current={i === indice ? 'step' : undefined}>
+                {e.rotulo}
+              </li>
+            ))}
+          </ol>
+        )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {erro && (
+          <div className="banner warn" role="alert">
+            <span className="ic" aria-hidden="true">⚠</span>
+            <div>Não foi possível simular: {erro}</div>
+          </div>
+        )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+        {tela === 'dados' && <TelaDados dados={dados} onChange={setDados} onSimular={simular} />}
+        {tela === 'resultado' && sim && <TelaResultado sim={sim} onEditar={() => ir('dados')} onDetalhar={() => ir('detalhe')} />}
+        {tela === 'detalhe' && sim && <TelaDetalhe sim={sim} onNova={() => ir('dados')} />}
+        {tela === 'premissas' && <TelaPremissas onVoltar={() => ir('dados')} />}
+      </main>
+
+      <footer className="site">Simulação educativa. Não constitui oferta de crédito.</footer>
     </>
   )
 }
-
-export default App
