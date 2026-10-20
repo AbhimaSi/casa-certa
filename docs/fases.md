@@ -12,11 +12,11 @@ Simulador comparativo de **Financiamento × Consórcio imobiliário**, desenvolv
 |---|---|---|
 | 1 | Levantamento de requisitos e regras de negócio | Feita (documento fora do repositório) |
 | 2 | Motor de cálculo (financiamento, consórcio, margem) | Concluída e testada |
-| 3 | Prototipação (wireframes HTML e protótipo interativo) | Em entrega — ver [`prototipacao/`](prototipacao/) |
-| 4 | Implementação da interface e integração com o motor | A fazer |
+| 3 | Prototipação (wireframes HTML e protótipo interativo) | Concluída — PR #3, 15/10/2026 — ver [`prototipacao/`](prototipacao/) |
+| 4 | Implementação da interface e integração com o motor | Concluída — PR #4, 16/10/2026 |
 | 5 | Testes finais, publicação e apresentação | A fazer |
 
-Publicação atual: <https://casa-certa-certificadora.vercel.app> (ainda exibe o template padrão do Vite).
+Publicação atual: <https://casa-certa-certificadora.vercel.app> (interface do PR #4, conferida em 19/10/2026).
 
 ---
 
@@ -30,6 +30,7 @@ Publicação atual: <https://casa-certa-certificadora.vercel.app> (ainda exibe o
 |---|---|
 | RF02 | Validação de comprometimento de renda |
 | RF03 | Custo total em R$ e CET do financiamento |
+| RF04 | Gráfico de custo acumulado das modalidades |
 | RF05 | Usuário pode sobrescrever juros anual, idade e demais taxas |
 | RN01 | A parcela não pode ultrapassar 30% da renda mensal bruta familiar |
 | RN02 | SAC: amortização constante, juros sobre o saldo devedor, parcelas decrescentes |
@@ -38,9 +39,10 @@ Publicação atual: <https://casa-certa-certificadora.vercel.app> (ainda exibe o
 | RN05 | Parcela do consórcio = fundo comum + taxa de administração (inclusive antecipada) + fundo de reserva |
 | RN06 | Saldo devedor e parcelas do consórcio reajustados a cada 12 meses pelo INCC |
 | RN07 | Lance livre reduz o saldo devedor, reduzindo o prazo ou a parcela |
+| RNF01 | Campos monetários com máscara R$ |
 | RNF04 | Taxas de mercado ficam em arquivo de configuração, trocáveis sem mexer na lógica |
 
-**Pendente de confirmação com o grupo:** RF01, RF04 e demais RNF/RN não aparecem no código.
+**Pendente de confirmação com o grupo:** RF01 e demais RNF/RN não aparecem no código.
 
 ---
 
@@ -86,6 +88,7 @@ Publicação atual: <https://casa-certa-certificadora.vercel.app> (ainda exibe o
 | 1 | Simulação | Formulário com dados do imóvel, renda, prazo, sistema (SAC/Price/ambos), premissas e lance opcionais | RF05, RN02, RN03, RN07 |
 | 2 | Resultado | Banner de margem, cartões comparativos, gráfico de custo acumulado, resumo neutro | RN01, RF02, RF03 |
 | 3 | Detalhamento | Tabela mês a mês e evolução do saldo, por modalidade | RN04, RN05, RN06 |
+| 4 | Premissas | Glossário das taxas e regras usadas (incluída na Fase 4) | RNF04 |
 | — | Mobile | Mesmas telas em coluna única | — |
 
 **Decisões de design**
@@ -115,14 +118,24 @@ Publicação atual: <https://casa-certa-certificadora.vercel.app> (ainda exibe o
 
 ---
 
-## Fase 4 — Implementação da interface (a fazer)
+## Fase 4 — Implementação da interface
 
-- Substituir o template do Vite em `src/App.tsx` pelas três telas.
-- Ligar o formulário aos motores em `src/calculo/`.
-- Exibir banner de margem com `avaliarMargem()`.
-- Gráficos de custo acumulado e saldo devedor.
-- Responsividade e acessibilidade.
-- Remover arquivos do template (`App.css`, `assets/hero.png`, `react.svg`, `vite.svg`) e atualizar o `README.md`.
+**Objetivo:** construir a interface em React seguindo o protótipo, sem nenhuma regra de cálculo nas telas.
+
+**Entregue** pelo PR #4 (`feature/interface`), mesclado em 16/10/2026:
+
+| Arquivo | O que faz |
+|---|---|
+| `src/telas/TelaDados.tsx` | Formulário com máscara R$, prazos, SAC/Price/ambos, premissas e lance, validação com foco no primeiro erro |
+| `src/telas/TelaResultado.tsx` | Alerta dos 30%, cartões por modalidade com custo total e CET, gráfico de custo acumulado e resumo neutro |
+| `src/telas/TelaDetalhe.tsx` | Abas por modalidade, gráfico do saldo devedor, tabela mês a mês (cartões no celular) e exportação CSV |
+| `src/telas/TelaPremissas.tsx` | Glossário das premissas |
+| `src/ui/simulacao.ts` | Estado do formulário, validação e chamada aos motores de `src/calculo` |
+| `src/ui/` (demais) | `CampoMoeda`, `Segmentado`, `GraficoLinha` (react-chartjs-2) e formatação pt-BR com testes |
+
+**Arquitetura:** telas → `src/ui/simulacao.ts` → motores em `src/calculo/` → taxas em `src/config/taxasMercado.ts`. Não há banco de dados: tudo roda no navegador e os dados ficam só na memória da página.
+
+**Situação em 19/10/2026:** `npm test` com 63 testes passando; lint e build limpos. O template do Vite foi removido.
 
 ## Fase 5 — Testes finais e entrega (a fazer)
 
