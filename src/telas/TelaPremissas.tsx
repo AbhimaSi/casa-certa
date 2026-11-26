@@ -45,7 +45,9 @@ export function TelaPremissas({ onVoltar }: Props) {
         <details>
           <summary>De onde vêm as taxas?</summary>
           <p>
-            São médias de mercado em src/config/taxasMercado.ts (consulta em 13/10/2026). Você pode alterá-las em
+            Os juros anuais usam a taxa média do financiamento imobiliário para pessoa física, da API SGS do Banco Central (série 20772), e o INCC é calculado com as
+            variações mensais da série 192 dos últimos 12 meses. Se a API estiver indisponível, usamos as taxas padrão
+            definidas em src/config/taxasMercado.ts. Esses valores são referências iniciais e podem ser alterados em
             "Ajustar premissas".
           </p>
         </details>

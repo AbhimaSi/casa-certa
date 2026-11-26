@@ -1,28 +1,76 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type { ModoLance } from '../calculo/consorcio'
 import { CampoMoeda } from '../ui/CampoMoeda'
 import { Segmentado } from '../ui/Segmentado'
 import { lerNumero } from '../ui/formatos'
 import {
+  aplicarTaxasBcb,
+  carregarTaxasMercado,
   DADOS_INICIAIS,
+  FONTES_INICIAIS,
   PRAZOS_CONSORCIO,
   PRAZOS_FINANCIAMENTO,
   validar,
   type DadosSimulacao,
   type Erros,
   type EscolhaSistema,
+  type FontesTaxas,
+  type PremissaBcb,
 } from '../ui/simulacao'
 
 interface Props {
   dados: DadosSimulacao
-  onChange: (d: DadosSimulacao) => void
+  onChange: Dispatch<SetStateAction<DadosSimulacao>>
+  premissasEditadas: ReadonlySet<PremissaBcb>
+  onPremissaEditada: (premissa: PremissaBcb) => void
+  onLimparPremissas: () => void
   onSimular: (d: DadosSimulacao) => void
 }
 
 /** Tela 1 — Dados da simulação (RF01, RF05, RN07). */
-export function TelaDados({ dados, onChange, onSimular }: Props) {
+export function TelaDados({
+  dados,
+  onChange,
+  premissasEditadas,
+  onPremissaEditada,
+  onLimparPremissas,
+  onSimular,
+}: Props) {
   const [erros, setErros] = useState<Erros>({})
-  const set = <K extends keyof DadosSimulacao>(k: K, v: DadosSimulacao[K]) => onChange({ ...dados, [k]: v })
+  const [fontes, setFontes] = useState<FontesTaxas>(FONTES_INICIAIS)
+  const [carregandoTaxas, setCarregandoTaxas] = useState(true)
+  const editadas = useRef(new Set(premissasEditadas))
+
+  useEffect(() => {
+    let ativa = true
+
+    carregarTaxasMercado()
+      .then((taxas) => {
+        if (!ativa) return
+        setFontes(taxas.fonte)
+        onChange((atual) => aplicarTaxasBcb(atual, taxas, editadas.current))
+      })
+      .catch((erro: unknown) => {
+        if (!ativa) return
+        console.error('[BCB] Não foi possível carregar as taxas de mercado.', erro)
+        setFontes(FONTES_INICIAIS)
+      })
+      .finally(() => {
+        if (ativa) setCarregandoTaxas(false)
+      })
+
+    return () => {
+      ativa = false
+    }
+  }, [onChange])
+
+  const set = <K extends keyof DadosSimulacao>(k: K, v: DadosSimulacao[K]) => {
+    if (k === 'jurosAnual' || k === 'inccAnual') {
+      editadas.current.add(k)
+      onPremissaEditada(k)
+    }
+    onChange((atual) => ({ ...atual, [k]: v }))
+  }
 
   const pctEntrada =
     dados.valorImovel > 0 && dados.entrada >= 0 ? Math.round((dados.entrada / dados.valorImovel) * 100) + '%' : '—'
@@ -40,7 +88,10 @@ export function TelaDados({ dados, onChange, onSimular }: Props) {
   }
 
   function limpar() {
+    editadas.current.clear()
+    onLimparPremissas()
     onChange(DADOS_INICIAIS)
+    setFontes(FONTES_INICIAIS)
     setErros({})
   }
 
@@ -157,7 +208,9 @@ export function TelaDados({ dados, onChange, onSimular }: Props) {
               {campoPct('inccAnual', 'INCC anual', '% ao ano')}
             </div>
             <div className="hint" style={{ marginTop: 10 }}>
-              Valores iniciais = taxas médias de mercado (src/config/taxasMercado.ts).
+              {carregandoTaxas
+                ? 'Exibindo taxas padrão enquanto consultamos o Banco Central.'
+                : `Juros: ${fontes.juros === 'bcb' ? 'BCB' : 'padrão local'} · INCC: ${fontes.incc === 'bcb' ? 'BCB' : 'padrão local'}. Você pode editar os valores.`}
             </div>
           </div>
         </details>

@@ -14,9 +14,9 @@ Simulador comparativo de **Financiamento × Consórcio imobiliário**, desenvolv
 | 2 | Motor de cálculo (financiamento, consórcio, margem) | Concluída e testada |
 | 3 | Prototipação (wireframes HTML e protótipo interativo) | Concluída — PR #3, 15/10/2026 — ver [`prototipacao/`](prototipacao/) |
 | 4 | Implementação da interface e integração com o motor | Concluída — PR #4, 16/10/2026 |
-| 5 | Testes finais, publicação e apresentação | A fazer |
+| 5 | Integração com o Banco Central, testes finais e entrega | Concluída — 26/11/2026 |
 
-Publicação atual: <https://casa-certa-certificadora.vercel.app> (interface do PR #4, conferida em 19/10/2026).
+Publicação atual: <https://casa-certa-certificadora.vercel.app> (link público, sem cadastro).
 
 ---
 
@@ -137,8 +137,22 @@ Publicação atual: <https://casa-certa-certificadora.vercel.app> (interface do 
 
 **Situação em 19/10/2026:** `npm test` com 63 testes passando; lint e build limpos. O template do Vite foi removido.
 
-## Fase 5 — Testes finais e entrega (a fazer)
+## Fase 5 — Integração com o Banco Central, testes finais e entrega
 
-- Conferir as taxas de mercado e as fontes citadas em `taxasMercado.ts`.
-- Teste manual do fluxo completo, em desktop e celular.
-- Publicação na Vercel e apresentação.
+**Objetivo:** trocar as taxas fixas por taxas atuais, sem tornar a simulação dependente da internet, e revisar o produto para a entrega.
+
+**Entregue**
+
+| Arquivo | O que faz |
+|---|---|
+| `src/services/bcb.ts` | Busca na API SGS do Banco Central a taxa média do financiamento imobiliário para pessoa física (série 20772, % a.a.) e o INCC mensal (série 192), compondo os últimos 12 meses. Cache de 24 h, timeout de 5 s e taxa padrão se a API falhar (RNF02, RNF03, RNF04) |
+| `src/ui/simulacao.ts` | `aplicarTaxasBcb()`: aplica as taxas da API sem sobrescrever um campo que o usuário já editou (RF05); validação dos prazos antes de chamar os motores |
+| `src/telas/TelaDados.tsx` | Abre com as taxas padrão na hora e informa se cada taxa veio do BCB ou do padrão local |
+| `src/ui/CampoMoeda.tsx` | Correção: ao entrar no campo com Tab, o valor digitado agora substitui o anterior em vez de ser colado no fim (14.000 + 9000 virava 140.009.000) |
+| `src/services/bcb.test.ts`, `src/ui/simulacao.test.ts` | Testes da integração (série usada, conversão, INCC composto, fallback, timeout, cache) e da aplicação das taxas |
+
+**Decisão técnica:** a primeira versão da integração usava a meta Selic (série 432) como juros do financiamento. A Selic é a taxa básica da economia, não o juro do crédito imobiliário, e deixaria a simulação com juros altos demais. Foi trocada pela série 20772.
+
+**Arquitetura final:** telas → `src/ui/simulacao.ts` → motores em `src/calculo/`; `src/services/bcb.ts` é o único módulo que acessa a internet e, se falhar, usa `src/config/taxasMercado.ts`.
+
+**Situação em 26/11/2026:** `npm test` com 79 testes passando; lint e build limpos.

@@ -3,7 +3,13 @@ import { TelaDados } from './telas/TelaDados'
 import { TelaDetalhe } from './telas/TelaDetalhe'
 import { TelaPremissas } from './telas/TelaPremissas'
 import { TelaResultado } from './telas/TelaResultado'
-import { DADOS_INICIAIS, executarSimulacao, type DadosSimulacao, type Simulacao } from './ui/simulacao'
+import {
+  DADOS_INICIAIS,
+  executarSimulacao,
+  type DadosSimulacao,
+  type PremissaBcb,
+  type Simulacao,
+} from './ui/simulacao'
 
 type Tela = 'dados' | 'resultado' | 'detalhe' | 'premissas'
 
@@ -16,6 +22,7 @@ const ETAPAS: { tela: Tela; rotulo: string }[] = [
 export default function App() {
   const [tela, setTela] = useState<Tela>('dados')
   const [dados, setDados] = useState<DadosSimulacao>(DADOS_INICIAIS)
+  const [premissasBcbEditadas, setPremissasBcbEditadas] = useState<ReadonlySet<PremissaBcb>>(() => new Set())
   const [sim, setSim] = useState<Simulacao | null>(null)
   const [erro, setErro] = useState('')
 
@@ -76,7 +83,18 @@ export default function App() {
           </div>
         )}
 
-        {tela === 'dados' && <TelaDados dados={dados} onChange={setDados} onSimular={simular} />}
+        {tela === 'dados' && (
+          <TelaDados
+            dados={dados}
+            onChange={setDados}
+            premissasEditadas={premissasBcbEditadas}
+            onPremissaEditada={(premissa) =>
+              setPremissasBcbEditadas((atuais) => new Set(atuais).add(premissa))
+            }
+            onLimparPremissas={() => setPremissasBcbEditadas(new Set())}
+            onSimular={simular}
+          />
+        )}
         {tela === 'resultado' && sim && <TelaResultado sim={sim} onEditar={() => ir('dados')} onDetalhar={() => ir('detalhe')} />}
         {tela === 'detalhe' && sim && <TelaDetalhe sim={sim} onNova={() => ir('dados')} />}
         {tela === 'premissas' && <TelaPremissas onVoltar={() => ir('dados')} />}

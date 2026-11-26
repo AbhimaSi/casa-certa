@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { lerNumero, num2 } from './formatos'
 
 interface Props {
@@ -17,11 +17,20 @@ export function CampoMoeda({ id, valor, onChange, placeholder, invalido }: Props
   const [foco, setFoco] = useState(false)
   const [texto, setTexto] = useState('')
   const exibido = foco ? texto : Number.isNaN(valor) ? '' : num2(valor)
+  const campo = useRef<HTMLInputElement>(null)
+
+  // Ao ganhar foco o texto muda de "1.234,56" para "1234,56" e o navegador perde a seleção.
+  // Selecionar tudo logo após essa troca faz o que for digitado substituir o valor
+  // (ex.: ao chegar no campo com Tab), em vez de ser colado no fim do número antigo.
+  useLayoutEffect(() => {
+    if (foco) campo.current?.select()
+  }, [foco])
 
   return (
     <div className="moeda">
       <span aria-hidden="true">R$</span>
       <input
+        ref={campo}
         id={id}
         inputMode="decimal"
         className={invalido ? 'bad' : undefined}
