@@ -210,7 +210,7 @@ export function TelaDados({
             <div className="hint" style={{ marginTop: 10 }}>
               {carregandoTaxas
                 ? 'Exibindo taxas padrão enquanto consultamos o Banco Central.'
-                : `Juros: ${fontes.selic === 'bcb' ? 'BCB' : 'padrão local'} · INCC: ${fontes.incc === 'bcb' ? 'BCB' : 'padrão local'}. Você pode editar os valores.`}
+                : `Juros: ${fontes.juros === 'bcb' ? 'BCB' : 'padrão local'} · INCC: ${fontes.incc === 'bcb' ? 'BCB' : 'padrão local'}. Você pode editar os valores.`}
             </div>
           </div>
         </details>

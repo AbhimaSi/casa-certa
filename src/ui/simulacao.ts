@@ -114,7 +114,7 @@ export function aplicarTaxasBcb(
   editadas: ReadonlySet<PremissaBcb> = new Set(),
 ): DadosSimulacao {
   const jurosAnual =
-    taxas.fonte.selic === 'bcb' && !editadas.has('jurosAnual')
+    taxas.fonte.juros === 'bcb' && !editadas.has('jurosAnual')
       ? paraPercentual(taxas.jurosAnual)
       : d.jurosAnual
   const inccAnual =

@@ -1,5 +1,5 @@
 /**
- * bcb.ts — Cliente da API SGS do Banco Central (Selic e INCC)
+ * bcb.ts — Cliente da API SGS do Banco Central (juros do financiamento imobiliário e INCC)
  *
  * Referências ao documento de requisitos (CasaCerta — Fase 1):
  *  - RNF04 (Manutenibilidade): as taxas de mercado ficam isoladas deste módulo e
@@ -34,7 +34,7 @@ export interface TaxasAtuais {
   inccAnual: number
   /** Útil para mostrar na UI se os dados são ao vivo ou padrão. */
   fonte: {
-    selic: 'bcb' | 'padrao'
+    juros: 'bcb' | 'padrao'
     incc: 'bcb' | 'padrao'
   }
 }
@@ -74,13 +74,20 @@ function parseValorSgs(bruto: unknown): number {
 }
 
 /**
- * Série 432 = meta Selic (% a.a.). Retorna o último valor como decimal
- * (ex.: 14,75 -> 0,1475). Rejeita valores não numéricos, vazios ou <= 0.
+ * Série 20772 = taxa média de juros do financiamento imobiliário com taxas de mercado,
+ * pessoas físicas (% a.a.). É a taxa que os bancos cobram no crédito imobiliário,
+ * diferente da Selic (série 432), que é a taxa básica da economia e não serve aqui.
+ * Retorna o último valor como decimal (ex.: 11,5 -> 0,115). Rejeita valores não
+ * numéricos, vazios ou <= 0.
  */
-async function buscarSelicAnual(): Promise<number> {
-  const dados = await fetchSgs(432, 1)
+export const SERIE_JUROS_IMOBILIARIO = 20772
+/** Série 192 = INCC (variação % mensal). */
+export const SERIE_INCC = 192
+
+async function buscarJurosImobiliarioAnual(): Promise<number> {
+  const dados = await fetchSgs(SERIE_JUROS_IMOBILIARIO, 1)
   const valor = parseValorSgs(dados[0]?.valor)
-  if (!Number.isFinite(valor) || valor <= 0) throw new Error('Selic inválida')
+  if (!Number.isFinite(valor) || valor <= 0) throw new Error('Taxa de juros imobiliária inválida')
   return valor / 100
 }
 
@@ -90,7 +97,7 @@ async function buscarSelicAnual(): Promise<number> {
  * de reajuste anual do consórcio (RN06).
  */
 async function buscarInccAnual(): Promise<number> {
-  const dados = await fetchSgs(192, 12)
+  const dados = await fetchSgs(SERIE_INCC, 12)
   if (dados.length < 12) throw new Error('Série INCC incompleta')
   const acumulado = dados.reduce((acc, item) => {
     const v = parseValorSgs(item.valor)
@@ -105,7 +112,7 @@ async function buscarInccAnual(): Promise<number> {
 /**
  * Fonte de uma taxa com cache próprio, TTL e deduplicação de requisições.
  *
- *  - Cache por taxa: se só a Selic vier do BCB, o INCC continua sendo
+ *  - Cache por taxa: se só os juros vierem do BCB, o INCC continua sendo
  *    tentado nas próximas chamadas (e vice-versa).
  *  - Guarda a Promise em andamento: chamadas simultâneas compartilham a
  *    mesma requisição em vez de disparar várias.
@@ -143,7 +150,7 @@ function criarFonte(buscar: () => Promise<number>) {
   }
 }
 
-const fonteSelic = criarFonte(buscarSelicAnual)
+const fonteJuros = criarFonte(buscarJurosImobiliarioAnual)
 const fonteIncc = criarFonte(buscarInccAnual)
 
 /** Registra no console quando uma taxa cai para o valor padrão (ajuda no debug). */
@@ -162,32 +169,32 @@ export function obterTaxasPadrao(): TaxasAtuais {
   return {
     jurosAnual: TAXAS_FINANCIAMENTO.jurosAnual,
     inccAnual: TAXAS_CONSORCIO.inccAnual,
-    fonte: { selic: 'padrao', incc: 'padrao' },
+    fonte: { juros: 'padrao', incc: 'padrao' },
   }
 }
 
 /**
- * Ponto de entrada do módulo. Tenta buscar Selic e INCC no BCB em paralelo;
+ * Ponto de entrada do módulo. Tenta buscar os juros imobiliários e o INCC no BCB em paralelo;
  * para cada taxa que falhar, usa o valor padrão de config/taxasMercado (RNF03/RNF04).
  * Nunca lança erro: no pior caso devolve apenas os valores padrão.
  */
 export async function obterTaxasAtuais(): Promise<TaxasAtuais> {
   // allSettled: a falha de uma requisição não derruba a outra
-  const [selicRes, inccRes] = await Promise.allSettled([
-    fonteSelic.obter(),
+  const [jurosRes, inccRes] = await Promise.allSettled([
+    fonteJuros.obter(),
     fonteIncc.obter(),
   ])
 
-  registrarFalha('Selic', selicRes)
+  registrarFalha('Juros', jurosRes)
   registrarFalha('INCC', inccRes)
 
   const padrao = obterTaxasPadrao()
 
   return {
-    jurosAnual: selicRes.status === 'fulfilled' ? selicRes.value : padrao.jurosAnual,
+    jurosAnual: jurosRes.status === 'fulfilled' ? jurosRes.value : padrao.jurosAnual,
     inccAnual: inccRes.status === 'fulfilled' ? inccRes.value : padrao.inccAnual,
     fonte: {
-      selic: selicRes.status === 'fulfilled' ? 'bcb' : 'padrao',
+      juros: jurosRes.status === 'fulfilled' ? 'bcb' : 'padrao',
       incc: inccRes.status === 'fulfilled' ? 'bcb' : 'padrao',
     },
   }
@@ -199,6 +206,6 @@ export async function obterTaxasAtuais(): Promise<TaxasAtuais> {
  * não herde o cache do anterior, junto com `vi.stubGlobal('fetch', ...)`.
  */
 export function resetCache(): void {
-  fonteSelic.reset()
+  fonteJuros.reset()
   fonteIncc.reset()
 }
