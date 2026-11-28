@@ -70,7 +70,10 @@ export default function App() {
           <ol className="steps" aria-label="Etapas">
             {ETAPAS.map((e, i) => (
               <li key={e.tela} className={i === indice ? 'on' : i < indice ? 'done' : ''} aria-current={i === indice ? 'step' : undefined}>
-                {e.rotulo}
+                {/* Resultado e Detalhamento só ficam disponíveis depois da primeira simulação. */}
+                <button type="button" onClick={() => ir(e.tela)} disabled={i === indice || (e.tela !== 'dados' && !sim)}>
+                  {e.rotulo}
+                </button>
               </li>
             ))}
           </ol>
